@@ -2,5 +2,5 @@
 *.lock
 .stack-work
 score.json
-exercices/*png
+exercises/*png
 
