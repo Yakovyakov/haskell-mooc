@@ -20,8 +20,7 @@ import Mooc.Todo
 --   "xfoobarquux"
 
 appendAll :: IORef String -> [String] -> IO ()
-appendAll = todo
-
+appendAll ref xs = mapM_ (\s -> modifyIORef ref (++ s)) xs
 ------------------------------------------------------------------------------
 -- Ex 2: Given two IORefs, swap the values stored in them.
 --
@@ -35,7 +34,11 @@ appendAll = todo
 --   "x"
 
 swapIORefs :: IORef a -> IORef a -> IO ()
-swapIORefs = todo
+swapIORefs refA refB = do
+    aVal <- readIORef refA
+    bVal <- readIORef refB
+    writeIORef refA bVal
+    writeIORef refB aVal
 
 ------------------------------------------------------------------------------
 -- Ex 3: sometimes one bumps into IO operations that return IO
@@ -61,7 +64,9 @@ swapIORefs = todo
 --        replicateM l getLine
 
 doubleCall :: IO (IO a) -> IO a
-doubleCall op = todo
+doubleCall op = do
+  innerOp <- op
+  innerOp
 
 ------------------------------------------------------------------------------
 -- Ex 4: implement the analogue of function composition (the (.)
@@ -80,8 +85,10 @@ doubleCall op = todo
 --   3. return the result (of type b)
 
 compose :: (a -> IO b) -> (c -> IO a) -> c -> IO b
-compose op1 op2 c = todo
-
+compose op1 op2 c = do
+    a <- op2 c
+    op1 a
+-- compose op1 op2 c = op2 c >>= op1
 ------------------------------------------------------------------------------
 -- Ex 5: Reading lines from a file. The module System.IO defines
 -- operations for Handles, which represent open files that can be read
@@ -110,8 +117,20 @@ compose op1 op2 c = todo
 --   ["module Set11b where","","import Control.Monad"]
 
 hFetchLines :: Handle -> IO [String]
-hFetchLines = todo
+hFetchLines h = do 
+  content <- hGetContents h
+  return (lines content)
 
+-- line by line
+hFetchLines' :: Handle -> IO [String]
+hFetchLines' h = do
+    eof <- hIsEOF h
+    if eof
+        then return []
+        else do
+            line <- hGetLine h
+            rest <- hFetchLines' h
+            return (line : rest)
 ------------------------------------------------------------------------------
 -- Ex 6: Given a Handle and a list of line indexes, produce the lines
 -- at those indexes from the file.
@@ -123,7 +142,9 @@ hFetchLines = todo
 -- handle.
 
 hSelectLines :: Handle -> [Int] -> IO [String]
-hSelectLines h nums = todo
+hSelectLines h nums = do
+  resultLines <- hFetchLines h
+  return (map (resultLines !!) [i - 1 | i <- nums, i > 0 && i <= length resultLines])
 
 ------------------------------------------------------------------------------
 -- Ex 7: In this exercise we see how a program can be split into a
@@ -164,4 +185,13 @@ counter ("print",n) = (True,show n,n)
 counter ("quit",n)  = (False,"bye bye",n)
 
 interact' :: ((String,st) -> (Bool,String,st)) -> st -> IO st
-interact' f state = todo
+interact' f state = loop state
+  where
+    loop currentState = do
+        line <- getLine
+        let (continue, output, newState) = f (line, currentState)
+        putStrLn output
+        if continue
+          then loop newState
+          else return newState 
+          

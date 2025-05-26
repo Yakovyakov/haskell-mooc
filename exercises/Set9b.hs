@@ -47,10 +47,10 @@ type Col   = Int
 type Coord = (Row, Col)
 
 nextRow :: Coord -> Coord
-nextRow (i,j) = todo
+nextRow (i,j) = (i + 1, 1)
 
 nextCol :: Coord -> Coord
-nextCol (i,j) = todo
+nextCol (i,j) = (i, j + 1)
 
 --------------------------------------------------------------------------------
 -- Ex 2: Implement the function prettyPrint that, given the size of
@@ -101,9 +101,39 @@ nextCol (i,j) = todo
 -- with the O-notation.)
 
 type Size = Int
+prettyPrint1 :: Size -> [Coord] -> String
+prettyPrint1 n queens = concat [fila y | y <- [0..n-1]]
+  where
+    fila y = [caracter x y | x <- [0..n-1]] ++ "\n"
+    caracter x y
+      | (x + 1, y + 1) `elem` queens = 'Q'
+      | otherwise            = '.'
 
 prettyPrint :: Size -> [Coord] -> String
-prettyPrint = todo
+prettyPrint n queens = matrixToString updatedGrid
+  where
+  
+    initialGrid = [ [ '.' | _ <- [1..n] ] | _ <- [1..n] ]
+    
+    
+    updatedGrid = foldl (\grid (row,col) -> updateGrid row col grid) initialGrid queens
+      where
+      
+        updateGrid :: Int -> Int -> [[Char]] -> [[Char]]
+        updateGrid row col grid =
+          let rowIdx = row - 1
+              colIdx = col - 1
+              oldRow = grid !! rowIdx
+              newRow = take colIdx oldRow ++ ['Q'] ++ drop (colIdx + 1) oldRow
+          in take rowIdx grid ++ [newRow] ++ drop (rowIdx + 1) grid
+
+
+    matrixToString [] = ""
+    matrixToString (fila:filas) = filaToString fila ++ "\n" ++ matrixToString filas
+    filaToString = id
+
+
+
 
 --------------------------------------------------------------------------------
 -- Ex 3: The task in this exercise is to define the relations sameRow, sameCol,
@@ -127,16 +157,16 @@ prettyPrint = todo
 --   sameAntidiag (500,5) (5,500) ==> True
 
 sameRow :: Coord -> Coord -> Bool
-sameRow (i,j) (k,l) = todo
+sameRow (i,j) (k,l) = i == k
 
 sameCol :: Coord -> Coord -> Bool
-sameCol (i,j) (k,l) = todo
+sameCol (i,j) (k,l) = j == l
 
 sameDiag :: Coord -> Coord -> Bool
-sameDiag (i,j) (k,l) = todo
+sameDiag (i,j) (k,l) = k - i == l - j
 
 sameAntidiag :: Coord -> Coord -> Bool
-sameAntidiag (i,j) (k,l) = todo
+sameAntidiag (i,j) (k,l) = k - i == j - l
 
 --------------------------------------------------------------------------------
 -- Ex 4: In chess, a queen may capture another piece in the same row, column,
@@ -191,7 +221,11 @@ type Candidate = Coord
 type Stack     = [Coord]
 
 danger :: Candidate -> Stack -> Bool
-danger = todo
+danger _ [] = False
+danger c (x:stack) = if checkCandidate c x then True else danger c stack
+  where
+    checkCandidate :: Coord -> Coord -> Bool
+    checkCandidate c x = sameCol c x || sameRow c x || sameDiag c x|| sameAntidiag c x
 
 --------------------------------------------------------------------------------
 -- Ex 5: In this exercise, the task is to write a modified version of
@@ -226,7 +260,32 @@ danger = todo
 -- solution to this version. Any working solution is okay in this exercise.)
 
 prettyPrint2 :: Size -> Stack -> String
-prettyPrint2 = todo
+prettyPrint2 n stack = matrixToString updatedGrid
+  where
+  
+    initialGrid = [ [ caracter row col | col <- [1..n] ] | row <- [1..n] ]
+      where
+        caracter x y
+          | danger (x,y) stack = '#'
+          | otherwise = '.'
+    
+    updatedGrid = foldl (\grid (row,col) -> updateGrid row col grid) initialGrid stack
+      where
+      
+        updateGrid :: Int -> Int -> [[Char]] -> [[Char]]
+        updateGrid row col grid =
+          let rowIdx = row - 1
+              colIdx = col - 1
+              oldRow = grid !! rowIdx
+              newRow = take colIdx oldRow ++ ['Q'] ++ drop (colIdx + 1) oldRow
+          in take rowIdx grid ++ [newRow] ++ drop (rowIdx + 1) grid
+
+
+    matrixToString [] = ""
+    matrixToString (fila:filas) = filaToString fila ++ "\n" ++ matrixToString filas
+    filaToString = id
+
+
 
 --------------------------------------------------------------------------------
 -- Ex 6: Now that we can check if a piece can be safely placed into a square in
@@ -271,7 +330,16 @@ prettyPrint2 = todo
 --     Q#######
 
 fixFirst :: Size -> Stack -> Maybe Stack
-fixFirst n s = todo
+fixFirst n [] = Nothing
+fixFirst n (first:stack) = helper n first
+  where
+    helper :: Size -> Coord -> Maybe Stack
+    helper n (row, col)
+      | col > n = Nothing
+      | row > n = Nothing
+      | not (danger (row, col) stack) = Just ((row, col):stack)
+      | otherwise = helper n (nextCol (row,col))
+
 
 --------------------------------------------------------------------------------
 -- Ex 7: We need two helper functions for stack management.
@@ -293,10 +361,12 @@ fixFirst n s = todo
 -- Hint: Remember nextRow and nextCol? Use them!
 
 continue :: Stack -> Stack
-continue s = todo
+continue [] = []
+continue (top:stack) = (nextRow(top):top:stack)
 
 backtrack :: Stack -> Stack
-backtrack s = todo
+backtrack [] = []
+backtrack (top:second:stack) = (nextCol(second):stack)
 
 --------------------------------------------------------------------------------
 -- Ex 8: Let's take a step. Our algorithm solves the problem (in a
@@ -365,7 +435,11 @@ backtrack s = todo
 --     step 8 [(6,1),(5,4),(4,2),(3,5),(2,3),(1,1)] ==> [(5,5),(4,2),(3,5),(2,3),(1,1)]
 
 step :: Size -> Stack -> Stack
-step = todo
+step n [] = []
+step n stack = case fixFirst n stack of
+    Just fixedStack -> continue fixedStack
+    Nothing         -> backtrack stack
+
 
 --------------------------------------------------------------------------------
 -- Ex 9: Let's solve our puzzle! The function finish takes a partial
@@ -380,7 +454,9 @@ step = todo
 -- solve the n queens problem.
 
 finish :: Size -> Stack -> Stack
-finish = todo
+finish n stack
+  | n + 1 == length stack = tail stack
+  | otherwise = finish n (step n stack)
 
 solve :: Size -> Stack
 solve n = finish n [(1,1)]

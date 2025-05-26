@@ -299,7 +299,12 @@ exampleSnowman = fill white snowman
 --        ["000000","000000","000000"]]
 
 paintSolid :: Color -> Shape -> Picture -> Picture
-paintSolid color shape base = todo
+paintSolid color (Shape shape) (Picture base) =
+  Picture $ \coord ->
+    if shape coord
+      then color
+      else base coord
+
 ------------------------------------------------------------------------------
 
 allWhite :: Picture
@@ -344,7 +349,12 @@ stripes a b = Picture f
 --       ["000000","000000","000000","000000","000000"]]
 
 paint :: Picture -> Shape -> Picture -> Picture
-paint pat shape base = todo
+paint (Picture pat) (Shape shape) (Picture base) =
+  Picture $ \coord ->
+    if shape coord
+      then pat coord
+      else base coord
+
 ------------------------------------------------------------------------------
 
 -- Here's a patterned version of the snowman example. See it by running:
@@ -407,19 +417,21 @@ xy = Picture f
 data Fill = Fill Color
 
 instance Transform Fill where
-  apply = todo
+  apply (Fill color) _ = Picture (\_ -> color)
 
 data Zoom = Zoom Int
   deriving Show
 
 instance Transform Zoom where
-  apply = todo
+  apply (Zoom z) (Picture f) = Picture (f . zoomCoord z)
 
 data Flip = FlipX | FlipY | FlipXY
   deriving Show
 
 instance Transform Flip where
-  apply = todo
+  apply FlipXY (Picture f) = Picture (f . flipCoordXY)
+  apply FlipX (Picture f) = Picture (\(Coord x y) -> f (Coord (-x) y))
+  apply FlipY (Picture f) = Picture (\(Coord x y) -> f (Coord x (-y)))
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
@@ -434,8 +446,8 @@ instance Transform Flip where
 data Chain a b = Chain a b
   deriving Show
 
-instance Transform (Chain a b) where
-  apply = todo
+instance (Transform a, Transform b) => Transform (Chain a b) where
+  apply (Chain a b) picture = apply a (apply b picture)
 ------------------------------------------------------------------------------
 
 -- Now we can redefine largeVerticalStripes using the above Transforms.
@@ -473,7 +485,25 @@ data Blur = Blur
   deriving Show
 
 instance Transform Blur where
-  apply = todo
+  apply Blur (Picture f) = Picture $ \(Coord x y) ->
+    let neighbors = [ Coord x y
+                    , Coord (x + 1) y
+                    , Coord (x - 1) y
+                    , Coord x (y + 1)
+                    , Coord x (y - 1)
+                    ]
+        colors = map (getColor . f) neighbors  -- Get colors for all neighbors
+        (totalR, totalG, totalB) = foldr addColors (0, 0, 0) colors
+        count = length neighbors
+        avgR = totalR `div` count
+        avgG = totalG `div` count
+        avgB = totalB `div` count
+    in Color avgR avgG avgB
+    where
+      getColor (Color r g b) = (r, g, b)
+      addColors (r, g, b) (accR, accG, accB) = (accR + r, accG + g, accB + b)
+      
+
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
@@ -491,7 +521,8 @@ data BlurMany = BlurMany Int
   deriving Show
 
 instance Transform BlurMany where
-  apply = todo
+  apply (BlurMany n) f | n > 0 =  apply (BlurMany (n-1)) (apply Blur f)
+    | otherwise  = f
 ------------------------------------------------------------------------------
 
 -- Here's a blurred version of our original snowman. See it by running

@@ -22,7 +22,9 @@ import Mooc.Todo
 --   False ||| undefined ==> an error!
 
 (|||) :: Bool -> Bool -> Bool
-x ||| y = todo
+x ||| y = case y of
+            True -> True
+            False -> x
 
 ------------------------------------------------------------------------------
 -- Ex 2: Define the function boolLength, that returns the length of a
@@ -36,7 +38,10 @@ x ||| y = todo
 --   length [False,undefined] ==> 2
 
 boolLength :: [Bool] -> Int
-boolLength xs = todo
+boolLength [] = 0
+boolLength (x:xs) = case x of 
+                      True -> 1 + boolLength xs
+                      False -> 1 + boolLength xs
 
 ------------------------------------------------------------------------------
 -- Ex 3: Define the function validate which, given a predicate and a
@@ -50,7 +55,10 @@ boolLength xs = todo
 --   validate (\x -> undefined) 3  ==>  an error!
 
 validate :: (a -> Bool) -> a -> a
-validate predicate value = todo
+validate predicate value = case (predicate value) of
+                              True -> value
+                              False -> value
+
 
 ------------------------------------------------------------------------------
 -- Ex 4: Even though we can't implement the generic seq function
@@ -84,10 +92,16 @@ class MySeq a where
   myseq :: a -> b -> b
 
 instance MySeq Bool where
-  myseq = todo
+  myseq a b = case a of
+                True  -> b
+                False -> b
 
 instance MySeq Int where
-  myseq = todo
+  myseq a b = case a of
+                0 ->  b
+                _ ->  b
 
 instance MySeq [a] where
-  myseq = todo
+  myseq xs b = case xs of
+                  []    -> b
+                  (_:_) -> b
